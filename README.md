@@ -67,8 +67,22 @@ phụ thuộc libc), chạy được trên kernel Linux ARM64 của Android:
 ```sh
 zig build -Dtarget=aarch64-linux-musl -Doptimize=ReleaseSafe \
   --prefix zig-out-aarch64-musl
-# binary: zig-out-aarch64-musl/bin/nettrace (4,5 MB, ARM aarch64, static)
+# binary: zig-out-aarch64-musl/bin/nettrace (4,6 MB, ARM aarch64, static-pie)
 ```
+
+Hai chi tiết bắt buộc để binary chạy được trên Android / Bionic, đã sửa
+sẵn trong source (không cần vá ELF bằng tay nữa):
+
+- **PIE:** `build.zig` có `exe.pie = true` — Android bắt buộc ELF Type
+  `DYN` (e_type 3). Bản musl mặc định ra `EXEC` (e_type 2) nên Bionic
+  báo `has unexpected e_type: 2` và không chạy.
+- **TLS alignment:** `src/main.zig` có biến
+  `export threadlocal var android_tls_align_fix: [64]u8 align(64)` và
+  ghi 1 byte vào nó trong `main()` để linker không loại bỏ — ép
+  `PT_TLS` / `.tbss` lên align 64. Musl mặc định chỉ align 8 nên
+  Bionic báo `executable's TLS segment is underaligned: alignment is
+  8, needs to be at least 64 for ARM64 Bionic`. Kiểm chứng bằng
+  `readelf -lW` (TLS `R 0x40`) và `readelf -SW` (`.tbss` align 64).
 
 Chép sang điện thoại rồi chạy trong Termux (đặt ở thư mục home, **không**
 đặt ở `/sdcard` vì đó là `noexec`):
@@ -90,6 +104,8 @@ chmod +x ~/nettrace
 | `nettrace 127.0.0.1 --mode tcp -p 443 -q 1` | Hop 1: `0.1ms 127.0.0.1`, đã tới đích — đúng |
 | `nettrace example.com --mode tcp` (trên máy này) | “Tới đích ở hop 1, 0.1ms” — **là giả, xem dưới** |
 | `nettrace 8.8.8.8 --mode udp` (trên máy này) | `!X (bị cấm)` cả 3 hop — sandbox chặn UDP |
+| `nettrace --help` (Termux, 2026-11-10 10:17) | Chạy được, in đúng hướng dẫn — đã qua được lỗi `e_type` và TLS alignment |
+| `nettrace zingmp3.vn` (Termux, 2026-11-10 10:17) | Báo `Lỗi tham số: TooManyHosts` dù chỉ đưa 1 host; trên máy build chạy cùng lệnh thì đúng — đang chờ chạy lại để xác nhận |
 
 ## Giới hạn thật — đọc trước khi tin kết quả
 

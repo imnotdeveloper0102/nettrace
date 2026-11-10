@@ -14,6 +14,10 @@ pub fn build(b: *std.Build) void {
         .name = "nettrace",
         .root_module = exe_mod,
     });
+    // Android / Termux bắt buộc PIE (ELF Type DYN, e_type 3).
+    // Bản static musl mặc định ra EXEC (e_type 2) nên linker Android
+    // báo "has unexpected e_type: 2" và không chạy được.
+    exe.pie = true;
     b.installArtifact(exe);
 
     const test_step = b.step("test", "Chạy unit test");

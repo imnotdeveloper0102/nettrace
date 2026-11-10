@@ -17,6 +17,12 @@ const ip_mod = @import("ip.zig");
 
 const version = "0.1.0";
 
+// Bionic trên ARM64 yêu cầu TLS alignment >= 64, musl mặc định chỉ 8
+// nên binary musl chạy trên Termux bị lỗi
+// "executable's TLS segment is underaligned: alignment is 8".
+// Biến threadlocal align 64 này ép linker nâng PT_TLS lên 64.
+export threadlocal var android_tls_align_fix: [64]u8 align(64) = std.mem.zeroes([64]u8);
+
 fn printUsage(prog: []const u8) void {
     std.debug.print(
         \\nettrace {s} — truy vết mạng (traceroute) bằng Zig, không cần root
@@ -99,6 +105,10 @@ fn parseArgs(args: []const []const u8) !Args {
 }
 
 pub fn main(init: std.process.Init.Minimal) !void {
+    // Giữ biến TLS align ở trên, không cho linker loại bỏ nó:
+    // ghi 1 byte thật vào nó rồi đọc lại.
+    android_tls_align_fix[0] = 1;
+    if (android_tls_align_fix[0] != 1) return error.TlsAlignFixFailed;
     var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const alloc = gpa.allocator();
