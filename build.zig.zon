@@ -1,0 +1,13 @@
+.{
+    .name = .nettrace,
+    .version = "0.1.0",
+    .fingerprint = 0x1e0763c982a034cf,
+    .minimum_zig_version = "0.17.1",
+    .dependencies = .{},
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "README.md",
+    },
+}
